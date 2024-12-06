@@ -9,6 +9,7 @@ results_dir = "data/processed"
 turnout_dir = "data/turnout"
 csvfile = f"{datadir}/election_data.csv"
 
+
 def read_election_data():
     election_data = {}
 
@@ -51,11 +52,9 @@ def read_election_data():
         "IOAN-AUREL STANCU-CANDIDAT INDEPENDENT-voturi",
         "CONSTANTIN-MIRCEA STOICA-CANDIDAT INDEPENDENT-voturi"
     ]
-    
-    # Remove the annoying '-voturi'
-    party_names = [party.replace('-voturi', '') for party in party_columns]
 
-    election_data = {}
+    #Removing annoying -voturi suffix
+    party_names = [party.replace('-voturi', '') for party in party_columns]
 
     with open(csvfile, newline='', encoding='utf-8') as csv_file:
         csvreader = csv.DictReader(csv_file)
@@ -63,23 +62,36 @@ def read_election_data():
         print(f"CSV Headers: {csvreader.fieldnames}")
         
         for row in csvreader:
-            precinct_id = row['precinct_county_name']
-            county = row['precinct_county_name']
-            precinct_name = row['precinct_name']
-
+            county = row['precinct_county_name']  
+            locality = row['uat_name']           
+            
             if county not in election_data:
                 election_data[county] = {}
-
-            election_data[county][precinct_name] = {
-                'total_registered': int(row['a']),
-                'total_turnout': int(row['b']),
-                'permanent_list': int(row['a1']),
-                'supplementary_list': int(row['a2']),
-                'mobile_urn': int(row['a3']),
-                'party_votes': {party_names[i]: int(row[party_columns[i]]) for i in range(len(party_columns))}
-            }
+            if locality not in election_data[county]:
+                #Structure of the locality in the json
+                election_data[county][locality] = {
+                    'total_registered': 0,
+                    'total_turnout': 0,
+                    'permanent_list': 0,
+                    'supplementary_list': 0,
+                    'mobile_urn': 0,
+                    'party_votes': {party: 0 for party in party_names}
+                }
+            
+            #data sources
+            election_data[county][locality]['total_registered'] += int(row['a'])
+            election_data[county][locality]['total_turnout'] += int(row['b'])
+            election_data[county][locality]['permanent_list'] += int(row['a1'])
+            election_data[county][locality]['supplementary_list'] += int(row['a2'])
+            election_data[county][locality]['mobile_urn'] += int(row['a3'])
+            
+            #aggregate for each party
+            for i in range(len(party_columns)):
+                party_name = party_names[i]
+                election_data[county][locality]['party_votes'][party_name] += int(row[party_columns[i]])
     
     return election_data
+
 
 def process_turnout_data(election_data):
     """Process the election data to calculate turnout statistics and party vote percentages."""
